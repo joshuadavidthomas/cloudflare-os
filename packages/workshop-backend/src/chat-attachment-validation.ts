@@ -40,6 +40,10 @@ const ATTACHMENT_SUPPORT_BY_PROVIDER = {
   ollama: isTextOrImageMime,
   // [ai-os fork] DeepSeek accepts text only (pi's catalog: input ["text"]).
   deepseek: isTextLikeAttachmentMimeType,
+  // [ai-os fork] OpenCode Go: text + images (several catalog models take image input).
+  "opencode-go": isTextOrImageMime,
+  // [ai-os fork] Z.ai: text + images (glm-5v-turbo takes image input).
+  zai: isTextOrImageMime,
 } satisfies Record<AiModelProvider, (mimeType: string) => boolean>;
 
 function sanitizeChatAttachmentMimeType(mimeType: string | undefined): string {
