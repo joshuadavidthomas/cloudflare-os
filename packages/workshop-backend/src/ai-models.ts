@@ -258,14 +258,16 @@ function gatewayNativeModel(config: AiModelConfig, gatewayUrl: string): Model<Ap
         thinkingLevelMap: catalog?.thinkingLevelMap,
         compat: catalog?.compat,
       };
-    // [ai-os fork] OpenCode Go through the gateway's /opencode-go route (OpenAI-compatible).
+    // [ai-os fork] OpenCode Go through the gateway's /custom-opencode-go route (custom
+    // provider; OpenAI-compatible). The gateway appends /chat/completions to base_url
+    // (https://opencode.ai/zen/go/v1/), so the request path carries no /v1.
     case "opencode-go":
       return {
         id: config.model,
         name: catalog?.name ?? config.model,
         api: "openai-completions",
         provider: "opencode-go",
-        baseUrl: `${gatewayUrl}/opencode-go`,
+        baseUrl: `${gatewayUrl}/custom-opencode-go`,
         reasoning: catalog?.reasoning ?? true,
         input: catalog?.input ?? ["text"],
         cost: catalog?.cost ?? ZERO_COST,
@@ -273,14 +275,17 @@ function gatewayNativeModel(config: AiModelConfig, gatewayUrl: string): Model<Ap
         thinkingLevelMap: catalog?.thinkingLevelMap,
         compat: catalog?.compat,
       };
-    // [ai-os fork] Z.ai through the gateway's /zai route (OpenAI-compatible).
+    // [ai-os fork] Z.ai through the gateway's /custom-zai route (custom provider;
+    // OpenAI-compatible). The gateway appends the request path to base_url
+    // (https://api.z.ai), so the path must carry the full API prefix; pi's catalog
+    // targets the coding endpoint, which is where the user's key has balance.
     case "zai":
       return {
         id: config.model,
         name: catalog?.name ?? config.model,
         api: "openai-completions",
         provider: "zai",
-        baseUrl: `${gatewayUrl}/zai`,
+        baseUrl: `${gatewayUrl}/custom-zai/api/coding/paas/v4`,
         reasoning: catalog?.reasoning ?? true,
         input: catalog?.input ?? ["text"],
         cost: catalog?.cost ?? ZERO_COST,
