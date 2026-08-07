@@ -4,6 +4,8 @@ declare namespace Cloudflare {
   interface Env {
     // Public-collections snapshot KV.
     CONTEXT_COLLECTIONS: KVNamespace;
+    // Optional deployment-level fallback when service-binding props are unavailable.
+    CONTEXT_SHARING_DOMAIN?: string;
     // Optional Git-compatible backing repos for artifact-backed context collections.
     ARTIFACTS?: Artifacts;
   }

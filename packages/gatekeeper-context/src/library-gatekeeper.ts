@@ -23,7 +23,8 @@ import {
   type CollectionSkills,
 } from "./agent-skill.js";
 import type { EnabledCollectionInfo } from "./context-types.js";
-import { domainName, DEFAULT_SHARING_DOMAIN } from "./domain.js";
+import { domainName } from "./domain.js";
+import { resolveSharingDomain } from "./sharing-domain.js";
 import APP_HTML from "./generated/app.txt";
 
 // The Context Library icon: the Phosphor "BookOpen" glyph as a self-contained SVG data URI (no
@@ -408,7 +409,10 @@ export class GatekeeperVendor extends WorkerEntrypoint<Cloudflare.Env, Gatekeepe
   // Skip return validation: proxy-wrapping a WorkerEntrypoint stub breaks Workers serialization.
   @skipRpcValidation()
   async createAccount(): Promise<Fetcher<GatekeeperUser>> {
-    let sharingDomain = this.ctx.props.sharingDomain ?? DEFAULT_SHARING_DOMAIN;
+    let sharingDomain = resolveSharingDomain(
+      this.ctx.props.sharingDomain,
+      this.env.CONTEXT_SHARING_DOMAIN,
+    );
     return this.ctx.exports.ContextAccount({
       props: { sharingDomain, accountId: crypto.randomUUID() },
     }) as unknown as Fetcher<GatekeeperUser>;

@@ -3,6 +3,7 @@ node_modules/
 
 # Build outputs
 dist/
+.alchemy/
 # Generated gatekeeper UI bundles, rebuilt as a prerequisite of build/types:check/deploy
 packages/gatekeeper-*/src/generated/*-configurator-ui.txt
 packages/gatekeeper-*/src/generated/*-configurator-ui.js*
