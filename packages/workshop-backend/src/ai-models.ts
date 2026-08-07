@@ -10,6 +10,8 @@ import { stream as openaiCompletionsStream } from "@earendil-works/pi-ai/api/ope
 import { stream as openaiResponsesStream } from "@earendil-works/pi-ai/api/openai-responses";
 import { ANTHROPIC_MODELS } from "@earendil-works/pi-ai/providers/anthropic.models";
 import { CLOUDFLARE_WORKERS_AI_MODELS } from "@earendil-works/pi-ai/providers/cloudflare-workers-ai.models";
+// [ai-os fork] DeepSeek catalog for gateway + direct routing.
+import { DEEPSEEK_MODELS } from "@earendil-works/pi-ai/providers/deepseek.models";
 import { GOOGLE_MODELS } from "@earendil-works/pi-ai/providers/google.models";
 import { OPENAI_MODELS } from "@earendil-works/pi-ai/providers/openai.models";
 import { ApprovalQueue, Gatekeeper, ResourceDescription } from '@gadgets/workshop-shared/gatekeeper';
@@ -121,6 +123,8 @@ function catalogModel(provider: AiModelConfig["provider"], modelId: string): Mod
   switch (provider) {
     case "anthropic": return (ANTHROPIC_MODELS as Record<string, Model<Api>>)[modelId];
     case "openai": return (OPENAI_MODELS as Record<string, Model<Api>>)[modelId];
+    // [ai-os fork]
+    case "deepseek": return (DEEPSEEK_MODELS as Record<string, Model<Api>>)[modelId];
     case "google": return (GOOGLE_MODELS as Record<string, Model<Api>>)[modelId];
     case "cloudflare": return (CLOUDFLARE_WORKERS_AI_MODELS as Record<string, Model<Api>>)[modelId];
     case "ollama": return undefined;
@@ -230,6 +234,22 @@ function gatewayNativeModel(config: AiModelConfig, gatewayUrl: string): Model<Ap
         cost: catalog?.cost ?? ZERO_COST,
         ...window,
         compat: workersAiCompat(catalog),
+      };
+    // [ai-os fork] DeepSeek through the gateway's provider-native /deepseek route. DeepSeek's
+    // API is OpenAI chat-completions compatible (pi catalogs it as such).
+    case "deepseek":
+      return {
+        id: config.model,
+        name: catalog?.name ?? config.model,
+        api: "openai-completions",
+        provider: "deepseek",
+        baseUrl: `${gatewayUrl}/deepseek`,
+        reasoning: catalog?.reasoning ?? true,
+        input: catalog?.input ?? ["text"],
+        cost: catalog?.cost ?? ZERO_COST,
+        ...window,
+        thinkingLevelMap: catalog?.thinkingLevelMap,
+        compat: catalog?.compat,
       };
     default:
       return undefined;
@@ -579,6 +599,26 @@ function getModelDirect(config: AiModelConfig, sessionAffinity?: string): ModelH
           baseUrl: config.apiUrl ?? "https://api.openai.com/v1",
           reasoning: catalog?.reasoning ?? true,
           input: catalog?.input ?? ["text", "image"],
+          cost: catalog?.cost ?? ZERO_COST,
+          ...window,
+          thinkingLevelMap: catalog?.thinkingLevelMap,
+          compat: catalog?.compat,
+        },
+        apiKey: config.apiToken,
+        sessionAffinity,
+      });
+    // [ai-os fork] Direct DeepSeek access (BYOK, no gateway). Required by the exhaustive
+    // default below; kept symmetric with the openai case.
+    case "deepseek":
+      return makeHandle({
+        model: {
+          id: config.model,
+          name: catalog?.name ?? config.model,
+          api: "openai-completions",
+          provider: "deepseek",
+          baseUrl: config.apiUrl ?? "https://api.deepseek.com/v1",
+          reasoning: catalog?.reasoning ?? true,
+          input: catalog?.input ?? ["text"],
           cost: catalog?.cost ?? ZERO_COST,
           ...window,
           thinkingLevelMap: catalog?.thinkingLevelMap,
