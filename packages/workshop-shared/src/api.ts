@@ -917,7 +917,9 @@ export type CloudflareAccountOption = {
 };
 
 // Supported AI providers.
-export type AiModelProvider = "openai" | "anthropic" | "google" | "cloudflare" | "ollama";
+// [ai-os fork] "deepseek" added for DeepSeek via AI Gateway.
+export type AiModelProvider =
+    "openai" | "anthropic" | "google" | "cloudflare" | "ollama" | "deepseek";
 
 // Information about the AI gateway configuration. Returned by `AuthenticatedApi.getAiConfig()`.
 export type AiGatewayInfo = {
@@ -984,6 +986,12 @@ export const SUGGESTED_MODELS: Record<
     "gemini-3.6-flash": {name: "Gemini 3.6 Flash", contextWindow: 1048576},
   },
   "ollama": {
+  },
+  // [ai-os fork] DeepSeek via AI Gateway. Model ids must match DeepSeek's API ids;
+  // metadata (cost, thinking compat) comes from pi's deepseek catalog.
+  "deepseek": {
+    "deepseek-v4-flash": { name: "DeepSeek V4 Flash", contextWindow: 1000000, outputLimit: 384000 },
+    "deepseek-v4-pro": { name: "DeepSeek V4 Pro", contextWindow: 1000000, outputLimit: 384000 },
   },
 };
 
