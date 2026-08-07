@@ -13,7 +13,10 @@ import { CLOUDFLARE_WORKERS_AI_MODELS } from "@earendil-works/pi-ai/providers/cl
 // [ai-os fork] DeepSeek catalog for gateway + direct routing.
 import { DEEPSEEK_MODELS } from "@earendil-works/pi-ai/providers/deepseek.models";
 import { GOOGLE_MODELS } from "@earendil-works/pi-ai/providers/google.models";
+// [ai-os fork] OpenCode Go + Z.ai catalogs for gateway + direct routing.
+import { OPENCODE_GO_MODELS } from "@earendil-works/pi-ai/providers/opencode-go.models";
 import { OPENAI_MODELS } from "@earendil-works/pi-ai/providers/openai.models";
+import { ZAI_MODELS } from "@earendil-works/pi-ai/providers/zai.models";
 import { ApprovalQueue, Gatekeeper, ResourceDescription } from '@gadgets/workshop-shared/gatekeeper';
 import { LanguageModelBinding } from "./ai-model-binding";
 import AI_MODEL_BINDING_TYPES from "./ai-model-binding.txt";
@@ -125,6 +128,10 @@ function catalogModel(provider: AiModelConfig["provider"], modelId: string): Mod
     case "openai": return (OPENAI_MODELS as Record<string, Model<Api>>)[modelId];
     // [ai-os fork]
     case "deepseek": return (DEEPSEEK_MODELS as Record<string, Model<Api>>)[modelId];
+    // [ai-os fork]
+    case "opencode-go": return (OPENCODE_GO_MODELS as Record<string, Model<Api>>)[modelId];
+    // [ai-os fork]
+    case "zai": return (ZAI_MODELS as Record<string, Model<Api>>)[modelId];
     case "google": return (GOOGLE_MODELS as Record<string, Model<Api>>)[modelId];
     case "cloudflare": return (CLOUDFLARE_WORKERS_AI_MODELS as Record<string, Model<Api>>)[modelId];
     case "ollama": return undefined;
@@ -244,6 +251,36 @@ function gatewayNativeModel(config: AiModelConfig, gatewayUrl: string): Model<Ap
         api: "openai-completions",
         provider: "deepseek",
         baseUrl: `${gatewayUrl}/deepseek`,
+        reasoning: catalog?.reasoning ?? true,
+        input: catalog?.input ?? ["text"],
+        cost: catalog?.cost ?? ZERO_COST,
+        ...window,
+        thinkingLevelMap: catalog?.thinkingLevelMap,
+        compat: catalog?.compat,
+      };
+    // [ai-os fork] OpenCode Go through the gateway's /opencode-go route (OpenAI-compatible).
+    case "opencode-go":
+      return {
+        id: config.model,
+        name: catalog?.name ?? config.model,
+        api: "openai-completions",
+        provider: "opencode-go",
+        baseUrl: `${gatewayUrl}/opencode-go`,
+        reasoning: catalog?.reasoning ?? true,
+        input: catalog?.input ?? ["text"],
+        cost: catalog?.cost ?? ZERO_COST,
+        ...window,
+        thinkingLevelMap: catalog?.thinkingLevelMap,
+        compat: catalog?.compat,
+      };
+    // [ai-os fork] Z.ai through the gateway's /zai route (OpenAI-compatible).
+    case "zai":
+      return {
+        id: config.model,
+        name: catalog?.name ?? config.model,
+        api: "openai-completions",
+        provider: "zai",
+        baseUrl: `${gatewayUrl}/zai`,
         reasoning: catalog?.reasoning ?? true,
         input: catalog?.input ?? ["text"],
         cost: catalog?.cost ?? ZERO_COST,
@@ -617,6 +654,46 @@ function getModelDirect(config: AiModelConfig, sessionAffinity?: string): ModelH
           api: "openai-completions",
           provider: "deepseek",
           baseUrl: config.apiUrl ?? "https://api.deepseek.com/v1",
+          reasoning: catalog?.reasoning ?? true,
+          input: catalog?.input ?? ["text"],
+          cost: catalog?.cost ?? ZERO_COST,
+          ...window,
+          thinkingLevelMap: catalog?.thinkingLevelMap,
+          compat: catalog?.compat,
+        },
+        apiKey: config.apiToken,
+        sessionAffinity,
+      });
+    // [ai-os fork] Direct OpenCode Go access (BYOK, no gateway). Required by the exhaustive
+    // default below; kept symmetric with the openai case.
+    case "opencode-go":
+      return makeHandle({
+        model: {
+          id: config.model,
+          name: catalog?.name ?? config.model,
+          api: "openai-completions",
+          provider: "opencode-go",
+          baseUrl: config.apiUrl ?? "https://opencode.ai/zen/go/v1",
+          reasoning: catalog?.reasoning ?? true,
+          input: catalog?.input ?? ["text"],
+          cost: catalog?.cost ?? ZERO_COST,
+          ...window,
+          thinkingLevelMap: catalog?.thinkingLevelMap,
+          compat: catalog?.compat,
+        },
+        apiKey: config.apiToken,
+        sessionAffinity,
+      });
+    // [ai-os fork] Direct Z.ai access (BYOK, no gateway). Required by the exhaustive
+    // default below; kept symmetric with the openai case.
+    case "zai":
+      return makeHandle({
+        model: {
+          id: config.model,
+          name: catalog?.name ?? config.model,
+          api: "openai-completions",
+          provider: "zai",
+          baseUrl: config.apiUrl ?? "https://api.z.ai/api/coding/paas/v4",
           reasoning: catalog?.reasoning ?? true,
           input: catalog?.input ?? ["text"],
           cost: catalog?.cost ?? ZERO_COST,
