@@ -46,7 +46,12 @@ export class AiGatewayConfig {
     for (let [provider, models] of Object.entries(SUGGESTED_MODELS)) {
       if (this.providers.has(provider)) {
         for (let [id, model] of Object.entries(models)) {
-          result.push({ type: "agent", id, name: model.name });
+          // [ai-os fork] Include the provider so same-named models from different providers
+          // stay distinguishable in the UI (e.g. "glm-5.2" under both OpenCode Go and Z.ai).
+          result.push({
+            type: "agent", id, name: model.name,
+            provider: provider as AiChatAuthorInfo["provider"],
+          });
         }
       }
     }

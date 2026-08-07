@@ -1783,6 +1783,11 @@ export type AiChatAuthorInfo = {
   // Display name for author, e.g. "Kenton Varda" or "GPT"
   name: string;
 
+  // [ai-os fork] Provider this model belongs to, when the entry is a provider model. Set only
+  // on gateway model-list entries so the UI can tell same-named models from different
+  // providers apart (e.g. "glm-5.2" under both OpenCode Go and Z.ai).
+  provider?: AiModelProvider;
+
   // Note: the avatar is intentionally not included here to keep this type lightweight (it's
   // embedded in every chat message). Fetch user avatars separately via
   // `AuthenticatedApi.getAvatar(userId)`.
