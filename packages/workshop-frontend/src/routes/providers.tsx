@@ -25,6 +25,11 @@ export const Route = createFileRoute('/providers')({ component: ProvidersPage })
 
 const PROVIDER_ORDER = Object.keys(SUGGESTED_MODELS) as AiModelProvider[]
 
+// [ai-os fork] Identity for quick-model toggles and list keys: provider-qualified when the
+// entry carries a provider, bare id otherwise. Same-named models from different providers
+// (e.g. "glm-5.2" under both OpenCode Go and Z.ai) must not share a toggle.
+const modelKey = (model: AiChatAuthorInfo) => model.provider ? `${model.provider}:${model.id}` : model.id
+
 const PRIMARY_BTN =
   'press inline-flex h-9 shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-lg bg-kumo-brand px-3.5 text-[13px] font-medium tracking-[-0.25px] text-white transition-colors hover:bg-kumo-brand-hover'
 
@@ -187,8 +192,9 @@ function ProvidersPage() {
     }
   }
 
-  const handleSetQuick = async (modelId: string) => {
-    const next = quickModel === modelId ? null : modelId
+  const handleSetQuick = async (model: AiChatAuthorInfo) => {
+    const key = modelKey(model)
+    const next = quickModel === key ? null : key
     setQuickModel(next)
     try {
       await authenticatedApi.setQuickModel(next)
@@ -257,7 +263,7 @@ function ProvidersPage() {
                 <span>
                   <strong className="font-medium text-kumo-default">Quick model:</strong>{' '}
                   {quickModel
-                    ? `${models.find((m) => m.id === quickModel)?.name ?? quickModel}.`
+                    ? `${models.find((m) => modelKey(m) === quickModel)?.name ?? quickModel}.`
                     : 'none set.'}{' '}
                   Used for fast tasks like generating chat titles. Click a model to set it.
                 </span>
@@ -301,15 +307,15 @@ function ProvidersPage() {
         ) : (
           filtered.map((model) => (
             <div
-              key={model.id}
+              key={modelKey(model)}
               className={deletingId === model.id ? 'pointer-events-none opacity-50' : ''}
             >
               <ModelRow
                 model={model}
-                isQuick={quickModel === model.id}
+                isQuick={quickModel === modelKey(model)}
                 isBuiltIn={isBuiltIn(model.id)}
                 onDelete={() => handleDelete(model)}
-                onSetQuick={() => handleSetQuick(model.id)}
+                onSetQuick={() => handleSetQuick(model)}
               />
             </div>
           ))
