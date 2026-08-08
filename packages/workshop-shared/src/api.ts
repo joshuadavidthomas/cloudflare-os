@@ -990,22 +990,37 @@ export const SUGGESTED_MODELS: Record<
   // [ai-os fork] DeepSeek via AI Gateway. Model ids must match DeepSeek's API ids;
   // metadata (cost, thinking compat) comes from pi's deepseek catalog.
   "deepseek": {
-    "deepseek-v4-flash": { name: "DeepSeek V4 Flash", contextWindow: 1000000, outputLimit: 384000 },
-    "deepseek-v4-pro": { name: "DeepSeek V4 Pro", contextWindow: 1000000, outputLimit: 384000 },
+    "deepseek-v4-flash": {
+      name: "DeepSeek V4 Flash (DeepSeek)", contextWindow: 1000000, outputLimit: 384000,
+    },
+    "deepseek-v4-pro": {
+      name: "DeepSeek V4 Pro (DeepSeek)", contextWindow: 1000000, outputLimit: 384000,
+    },
   },
   // [ai-os fork] OpenCode Go via AI Gateway. Model ids must match OpenCode Go's API ids;
   // metadata (cost, thinking compat) comes from pi's opencode-go catalog.
   "opencode-go": {
+    "grok-4.5": { name: "Grok 4.5 (OpenCode Go)", contextWindow: 500000, outputLimit: 500000 },
+    "gpt-5.6-luna": {
+      name: "GPT 5.6 Luna (OpenCode Go)", contextWindow: 1050000, outputLimit: 128000,
+    },
     "glm-5.2": { name: "GLM 5.2 (OpenCode Go)", contextWindow: 1000000, outputLimit: 131072 },
+    "kimi-k3": { name: "Kimi K3 (OpenCode Go)", contextWindow: 1048576, outputLimit: 131072 },
     "kimi-k2.7-code": { name: "Kimi K2.7 Code (OpenCode Go)", contextWindow: 262144, outputLimit: 262144 },
-    "qwen3.6-plus": { name: "Qwen3.6 Plus (OpenCode Go)", contextWindow: 1000000, outputLimit: 65536 },
+    "deepseek-v4-flash": {
+      name: "DeepSeek V4 Flash (OpenCode Go)", contextWindow: 1000000, outputLimit: 384000,
+    },
+    "deepseek-v4-pro": {
+      name: "DeepSeek V4 Pro (OpenCode Go)", contextWindow: 1000000, outputLimit: 384000,
+    },
+    "qwen3.8-max": {
+      name: "Qwen3.8 Max (OpenCode Go)", contextWindow: 1000000, outputLimit: 131072,
+    },
   },
   // [ai-os fork] Z.ai via AI Gateway. Model ids must match Z.ai's API ids;
   // metadata (cost, thinking compat) comes from pi's zai catalog.
   "zai": {
     "glm-5.2": { name: "GLM 5.2 (Z.ai)", contextWindow: 1000000, outputLimit: 131072 },
-    "glm-4.7": { name: "GLM 4.7 (Z.ai)", contextWindow: 204800, outputLimit: 131072 },
-    "glm-5v-turbo": { name: "GLM-5V-Turbo (Z.ai)", contextWindow: 200000, outputLimit: 131072 },
   },
 };
 

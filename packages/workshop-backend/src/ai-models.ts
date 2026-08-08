@@ -265,7 +265,7 @@ function gatewayNativeModel(config: AiModelConfig, gatewayUrl: string): Model<Ap
       return {
         id: config.model,
         name: catalog?.name ?? config.model,
-        api: "openai-completions",
+        api: catalog?.api ?? "openai-completions",
         provider: "opencode-go",
         baseUrl: `${gatewayUrl}/custom-opencode-go`,
         reasoning: catalog?.reasoning ?? true,
@@ -676,9 +676,9 @@ function getModelDirect(config: AiModelConfig, sessionAffinity?: string): ModelH
         model: {
           id: config.model,
           name: catalog?.name ?? config.model,
-          api: "openai-completions",
+          api: catalog?.api ?? "openai-completions",
           provider: "opencode-go",
-          baseUrl: config.apiUrl ?? "https://opencode.ai/zen/go/v1",
+          baseUrl: config.apiUrl ?? catalog?.baseUrl ?? "https://opencode.ai/zen/go/v1",
           reasoning: catalog?.reasoning ?? true,
           input: catalog?.input ?? ["text"],
           cost: catalog?.cost ?? ZERO_COST,
