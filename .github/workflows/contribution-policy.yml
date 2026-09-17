@@ -20,9 +20,12 @@ jobs:
       pull-requests: write
     steps:
       - name: Check out trusted workflow revision
+        # No `ref`: the default self-checkout already resolves to the event's trusted revision
+        # (the base branch for `pull_request_target`). Naming one makes actions/checkout inspect
+        # it, and `github.workflow_sha` collides with the pull request's own head/merge SHA once
+        # the sync pull request has landed, which the fork-PR guard refuses.
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.workflow_sha }}
           persist-credentials: false
 
       - name: Enforce contribution policy
