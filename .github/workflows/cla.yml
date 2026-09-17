@@ -15,6 +15,10 @@ permissions:
 jobs:
   CLAssistant:
     runs-on: ubuntu-latest
+    # pull[bot] syncs upstream `main` into this fork with locked pull requests, and no
+    # cla-signatures branch exists here, so the action can neither comment nor record a
+    # signature. Contributor CLAs are enforced upstream, where the changes are authored.
+    if: github.actor != 'pull[bot]'
     steps:
       - name: "CLA Assistant"
         if: (github.event.issue.pull_request && (github.event.comment.body == 'recheck' || github.event.comment.body == 'I have read the CLA Document and I hereby sign the CLA')) || github.event_name == 'pull_request_target'
