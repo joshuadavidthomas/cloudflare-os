@@ -203,7 +203,7 @@ export default function ObserverConfigModal({
         await authenticatedApi.provisionAmbientAccount(vendorId)
       } else {
         const required = requiredResourceUrlPatterns(need, vendor)
-        openConnectWindow(await authenticatedApi.connectAccount(
+        await openConnectWindow(authenticatedApi.connectAccount(
           vendorId,
           required.length > 0 ? required : undefined,
         ))
@@ -220,7 +220,7 @@ export default function ObserverConfigModal({
     setReconnecting(accountId)
     try {
       // The popup redeems the ticket itself; the restored account arrives through the subscription.
-      openConnectWindow(await authenticatedApi.reconnectAccount(accountId))
+      await openConnectWindow(authenticatedApi.reconnectAccount(accountId))
     } catch (err) {
       console.error('Failed to initiate reconnection:', err)
       toasts.add({ title: 'Failed to start re-authentication flow', variant: 'error' })
@@ -239,9 +239,8 @@ export default function ObserverConfigModal({
     if (missing.length === 0) return
     setGranting(account.id)
     try {
-      const flow = await authenticatedApi.ensureAccountResources(account.id, missing)
-      if (flow) openConnectWindow(flow)
-      else {
+      const popup = await openConnectWindow(authenticatedApi.ensureAccountResources(account.id, missing))
+      if (!popup) {
         // The gatekeeper confirmed this account already has access. Update the modal so the user can
         // continue without an OAuth flow.
         setAccounts(prev => {

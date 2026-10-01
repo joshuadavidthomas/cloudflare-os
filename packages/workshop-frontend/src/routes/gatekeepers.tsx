@@ -577,7 +577,7 @@ function ConnectorsPage() {
         // If the gatekeeper provides a management UI, its nav entry should appear without a reload.
         refreshGatekeeperApps(authenticatedApi)
       } else {
-        openConnectWindow(await authenticatedApi.connectAccount(vendorId, resourceUrlPatterns))
+        await openConnectWindow(authenticatedApi.connectAccount(vendorId, resourceUrlPatterns))
       }
       handleCloseModal()
     } catch (err) {
@@ -592,11 +592,10 @@ function ConnectorsPage() {
     if (!modalTarget || modalTarget.kind !== 'manage') return
     setEnsuringResourceUrlPatterns((prev) => [...new Set([...prev, ...resourceUrlPatterns])])
     try {
-      const flow = await authenticatedApi.ensureAccountResources(
+      await openConnectWindow(authenticatedApi.ensureAccountResources(
         modalTarget.accountId,
         resourceUrlPatterns,
-      )
-      if (flow) openConnectWindow(flow)
+      ))
       // The popup redeems the ticket itself; the new grant arrives via subscribeConnectedAccounts(),
       // and the toggle reflects it once `grantedResourceUrlPatterns` updates.
     } catch (err) {
@@ -631,7 +630,7 @@ function ConnectorsPage() {
   const handleReconnect = async (accountId: number) => {
     setReconnectingAccountId(accountId)
     try {
-      openConnectWindow(await authenticatedApi.reconnectAccount(accountId))
+      await openConnectWindow(authenticatedApi.reconnectAccount(accountId))
     } catch (err) {
       console.error('Failed to reconnect account:', err)
       toasts.add({ title: 'Failed to reconnect account', variant: 'error' })

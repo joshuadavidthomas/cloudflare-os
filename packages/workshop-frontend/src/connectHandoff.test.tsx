@@ -36,11 +36,11 @@ describe('openConnectWindow', () => {
     sessionStorage.clear()
   })
 
-  it('opens an empty popup under a fresh name, disowns it, gives it the nonce, then navigates it', () => {
+  it('opens an empty popup under a fresh name, disowns it, gives it the nonce, then navigates it', async () => {
     const popup = fakePopup()
     const open = vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window)
 
-    expect(openConnectWindow({ url: 'https://gk.example/connect', nonce: NONCE })).toBe(popup)
+    expect(await openConnectWindow({ url: 'https://gk.example/connect', nonce: NONCE })).toBe(popup)
     expect(open).toHaveBeenCalledExactlyOnceWith('', expect.stringMatching(/^gadgets-connect-/), FEATURES)
     expect(open.mock.calls[0][1]).not.toContain('noopener')
     expect(open.mock.calls[0][2]).not.toContain('noopener')
@@ -53,11 +53,11 @@ describe('openConnectWindow', () => {
       .toBeLessThan(popup.location.replace.mock.invocationCallOrder[0])
   })
 
-  it('writes the handoff record into the popup, and nothing into this tab', () => {
+  it('writes the handoff record into the popup, and nothing into this tab', async () => {
     const popup = fakePopup()
     vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window)
 
-    openConnectWindow({ url: 'https://gk.example/connect', nonce: NONCE })
+    await openConnectWindow({ url: 'https://gk.example/connect', nonce: NONCE })
 
     expect(popup.sessionStorage.setItem).toHaveBeenCalledExactlyOnceWith(
       HANDOFF_KEY, JSON.stringify({ kind: 'connect', nonce: NONCE }))
@@ -65,16 +65,16 @@ describe('openConnectWindow', () => {
     expect(sessionStorage.length).toBe(0)
   })
 
-  it('closes the previous connect popup and names the next one differently', () => {
+  it('closes the previous connect popup and names the next one differently', async () => {
     const first = fakePopup()
     const second = fakePopup()
     const open = vi.spyOn(window, 'open')
       .mockReturnValueOnce(first as unknown as Window)
       .mockReturnValueOnce(second as unknown as Window)
 
-    openConnectWindow({ url: 'https://gk.example/one', nonce: NONCE })
+    await openConnectWindow({ url: 'https://gk.example/one', nonce: NONCE })
     expect(first.close).not.toHaveBeenCalled()
-    openConnectWindow({ url: 'https://gk.example/two', nonce: 'c'.repeat(64) })
+    await openConnectWindow({ url: 'https://gk.example/two', nonce: 'c'.repeat(64) })
 
     expect(first.close).toHaveBeenCalledOnce()
     expect(second.close).not.toHaveBeenCalled()
@@ -82,24 +82,69 @@ describe('openConnectWindow', () => {
     expect(second.location.replace).toHaveBeenCalledExactlyOnceWith('https://gk.example/two')
   })
 
-  it('tells the user when the browser blocked the popup', () => {
+  it('tells the user when the browser blocked the popup', async () => {
     vi.spyOn(window, 'open').mockReturnValue(null)
 
-    expect(() => openConnectWindow({ url: 'https://gk.example/connect', nonce: NONCE }))
-      .toThrow('Pop-up blocked. Please allow pop-ups and try again.')
+    await expect(openConnectWindow({ url: 'https://gk.example/connect', nonce: NONCE }))
+      .rejects.toThrow('Pop-up blocked. Please allow pop-ups and try again.')
   })
 
-  it('closes the popup and throws when it refuses the storage write, starting nothing', () => {
+  it('closes the popup and throws when it refuses the storage write, starting nothing', async () => {
     // Without the nonce the flow could never complete, so the user hears it now, not after the
     // provider's consent screen.
     const popup = fakePopup()
     popup.sessionStorage.setItem.mockImplementation(() => { throw new DOMException('denied', 'SecurityError') })
     vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window)
 
-    expect(() => openConnectWindow({ url: 'https://gk.example/connect', nonce: NONCE }))
-      .toThrow(/blocks storage in pop-ups/)
+    await expect(openConnectWindow({ url: 'https://gk.example/connect', nonce: NONCE }))
+      .rejects.toThrow(/blocks storage in pop-ups/)
     expect(popup.close).toHaveBeenCalledOnce()
     expect(popup.location.replace).not.toHaveBeenCalled()
+  })
+
+  // Safari only lets a page open a window while it handles the click; once the handler awaits the
+  // RPC that starts the flow, window.open() is blocked. So the popup has to open first.
+  it('opens the popup before the flow arrives, then navigates it once it does', async () => {
+    const popup = fakePopup()
+    const open = vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window)
+    let resolveFlow!: (flow: { url: string; nonce: string }) => void
+
+    const opening = openConnectWindow(new Promise(resolve => { resolveFlow = resolve }))
+    expect(open).toHaveBeenCalledOnce()
+    expect(popup.opener).toBeNull()
+    expect(popup.location.replace).not.toHaveBeenCalled()
+
+    resolveFlow({ url: 'https://gk.example/connect', nonce: NONCE })
+    expect(await opening).toBe(popup)
+    expect(popup.location.replace).toHaveBeenCalledExactlyOnceWith('https://gk.example/connect')
+    expect(popup.close).not.toHaveBeenCalled()
+  })
+
+  it('closes the popup when the flow fails to start', async () => {
+    const popup = fakePopup()
+    vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window)
+
+    await expect(openConnectWindow(Promise.reject(new Error('No such service: x'))))
+      .rejects.toThrow('No such service: x')
+    expect(popup.close).toHaveBeenCalledOnce()
+    expect(popup.location.replace).not.toHaveBeenCalled()
+  })
+
+  it('closes the popup and resolves null when there is no flow to run', async () => {
+    // ensureAccountResources returns null when the account already has the access.
+    const popup = fakePopup()
+    vi.spyOn(window, 'open').mockReturnValue(popup as unknown as Window)
+
+    expect(await openConnectWindow(Promise.resolve(null))).toBeNull()
+    expect(popup.close).toHaveBeenCalledOnce()
+    expect(popup.location.replace).not.toHaveBeenCalled()
+  })
+
+  it('reports a blocked popup rather than the flow, which it leaves to expire', async () => {
+    vi.spyOn(window, 'open').mockReturnValue(null)
+
+    await expect(openConnectWindow(Promise.reject(new Error('also failed'))))
+      .rejects.toThrow('Pop-up blocked. Please allow pop-ups and try again.')
   })
 })
 

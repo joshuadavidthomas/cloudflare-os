@@ -64,18 +64,35 @@ export type PopupHandoff = { kind: 'connect' | 'login'; nonce: string }
  * in that popup, nothing opened from this tab inherits it, and a handoff link opened any other way
  * (a fresh tab, a pasted URL, a link an attacker sends) holds none and redeems nothing.
  *
- * Disowning is done by hand rather than with the `noopener` feature, which makes `window.open()`
- * return null even on success, indistinguishable from a pop-up block. `name` must be fresh per
- * flow: `window.open('', existingName)` returns an existing window without navigating it, and one
- * parked on a provider page is cross-origin, so the storage write would throw.
- *
  * Throws when the browser blocked the popup, or refused the storage write: without the nonce the
  * flow could never complete, so it is not started, and the popup is closed again.
  */
 export function openDisownedPopup(url: string, name: string, handoff: PopupHandoff): Window {
+  const popup = openBlankPopup(name)
+  handOffPopup(popup, url, handoff)
+  return popup
+}
+
+/**
+ * The first half of `openDisownedPopup`: an empty, disowned popup, opened now so that it is still
+ * the user's click opening it. Safari only lets a page open a window while it is handling the
+ * click, and an `await` ends that, so a flow whose URL comes from the server opens its popup
+ * before asking for the URL and navigates it with `handOffPopup` once it arrives.
+ *
+ * Disowning is done by hand rather than with the `noopener` feature, which makes `window.open()`
+ * return null even on success, indistinguishable from a pop-up block. `name` must be fresh per
+ * flow: `window.open('', existingName)` returns an existing window without navigating it, and one
+ * parked on a provider page is cross-origin, so the storage write would throw.
+ */
+function openBlankPopup(name: string): Window {
   const popup = window.open('', name, 'popup,width=520,height=680')
   if (!popup) throw new Error('Pop-up blocked. Please allow pop-ups and try again.')
   popup.opener = null
+  return popup
+}
+
+/** The second half of `openDisownedPopup`: gives the blank popup the nonce, then navigates it. */
+function handOffPopup(popup: Window, url: string, handoff: PopupHandoff): void {
   try {
     popup.sessionStorage.setItem(HANDOFF_KEY, JSON.stringify(handoff))
   } catch {
@@ -83,7 +100,6 @@ export function openDisownedPopup(url: string, name: string, handoff: PopupHando
     throw new Error('This browser blocks storage in pop-ups, so the flow cannot complete. Allow site data for this site and try again.')
   }
   popup.location.replace(url)
-  return popup
 }
 
 /**
@@ -102,15 +118,42 @@ let lastConnectPopup: Window | null = null
 /**
  * Opens a connect / reconnect / ensure-resources flow as a disowned popup carrying the flow's
  * nonce (see `openDisownedPopup`). The popup redeems the ticket itself on ConnectHandoffPage; the
- * account arrives in this tab through `subscribeConnectedAccounts()`. Throws when the browser
- * blocked the popup.
+ * account arrives in this tab through `subscribeConnectedAccounts()`.
+ *
+ * Takes the RPC that starts the flow un-awaited -- `await openConnectWindow(api.connectAccount(id))`
+ * -- and must be called while handling the user's click: the popup opens blank straight away and
+ * is navigated when the flow arrives (see `openBlankPopup`). A null flow, which
+ * `ensureAccountResources` returns when the account already has the access, closes the popup
+ * again and resolves null. Rejects when the browser blocked the popup or the flow failed to start,
+ * closing the popup either way.
  */
-export function openConnectWindow(flow: ConnectFlowStart): Window {
+export async function openConnectWindow(
+  flow: ConnectFlowStart | null | Promise<ConnectFlowStart | null>,
+): Promise<Window | null> {
   if (lastConnectPopup) {
     try { lastConnectPopup.close() } catch { /* cross-origin or already gone */ }
+    lastConnectPopup = null
   }
-  const popup = openDisownedPopup(
-    flow.url, uniquePopupName('gadgets-connect'), { kind: 'connect', nonce: flow.nonce })
+  let popup: Window
+  try {
+    popup = openBlankPopup(uniquePopupName('gadgets-connect'))
+  } catch (error) {
+    // The flow was started regardless; nothing will redeem it, so it just expires.
+    Promise.resolve(flow).catch(() => {})
+    throw error
+  }
+  let started: ConnectFlowStart | null
+  try {
+    started = await flow
+  } catch (error) {
+    popup.close()
+    throw error
+  }
+  if (!started) {
+    popup.close()
+    return null
+  }
+  handOffPopup(popup, started.url, { kind: 'connect', nonce: started.nonce })
   lastConnectPopup = popup
   return popup
 }

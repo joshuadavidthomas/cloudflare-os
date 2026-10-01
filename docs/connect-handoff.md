@@ -45,7 +45,9 @@ returns its hex alongside the `url`. The Workshop tab writes it into the **popup
 never its own: `openDisownedPopup` in `connectHandoff.ts` opens the popup empty
 (`window.open('', name, features)` yields a same-origin `about:blank`, so `popup.sessionStorage` is
 writable), sets `opener = null`, stores `{ kind, nonce }` under `HANDOFF_KEY` (`gadgets.handoff`),
-and only then navigates the popup with `location.replace(url)`.
+and only then navigates the popup with `location.replace(url)`. A connect flow's `url` comes from
+an RPC, so `openConnectWindow` takes that RPC un-awaited and opens the empty popup first: Safari only
+lets a page open a window while it handles the click, and an `await` ends that.
 
 Why the popup's storage:
 
@@ -116,11 +118,11 @@ sequenceDiagram
     participant GK as Gatekeeper
     participant P as Provider
     Tab->>WS: connectAccount(vendorId)
+    Tab->>Popup: window.open('', fresh name)  (still in the click handler)
+    Tab->>Popup: opener = null
     WS->>GK: vendor.connectAccount(callback)
     GK-->>WS: url
     WS-->>Tab: { url, nonce }  (openConnectFlow stores hash(nonce), accountId)
-    Tab->>Popup: window.open('', fresh name)
-    Tab->>Popup: opener = null
     Tab->>Popup: sessionStorage[gadgets.handoff] = { kind: connect, nonce }
     Tab->>Popup: location.replace(url)
     Popup->>GK: GET url
