@@ -119,6 +119,12 @@ For local development no credentials are needed. Set `MCP_ALLOW_INSECURE=true` i
    (`invalid_grant` and friends) marks the account expired, while transport and unrecognised failures
    leave it alone to be retried.
 
+The form also takes an optional **API token**, for a server that issues tokens but only lets known
+clients register for OAuth. Fastmail is one: its registration endpoint refuses any redirect URI
+outside its allowlist. With a token the account skips steps 2-4, records `auth: "token"`, keeps the
+token in its own storage, and sends it as the bearer on every request (`staticToken` in `mcp.ts`).
+A refused token keeps the form open to retry.
+
 The endpoint is fixed at first connect. Reconnecting an account cannot point it at a different
 server, since the binding's props still name the original. (The MCP Server Portals connector is the
 exception: its endpoint comes from deployment configuration rather than a form, so a reconnect there

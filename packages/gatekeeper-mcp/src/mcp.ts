@@ -116,20 +116,23 @@ export default {
         }
         const form = await request.formData();
         return continueConnect(
-          account, initiationNonce, String(form.get("url") ?? ""), env, path);
+          account, initiationNonce, String(form.get("url") ?? ""), env, path,
+          String(form.get("token") ?? "").trim() || null);
       },
     });
   },
 };
 
 // Validates the endpoint the user typed, then hands off to the account DO, which owns every
-// credential. `endpointUrl` is null on a reconnect.
+// credential. `endpointUrl` is null on a reconnect. `token` is an API token the user pasted for a
+// server that issues them, used instead of signing in.
 async function continueConnect(
   account: DurableObjectStub<McpAccount>,
   initiationNonce: string,
   endpointUrl: string | null,
   env: Env,
   formPath: string,
+  token: string | null = null,
 ): Promise<Response> {
   let target: ConnectedServer | null = null;
 
@@ -138,20 +141,23 @@ async function continueConnect(
     if (!validated.ok) {
       return htmlResponse(connectFormHtml(formPath, validated.reason), 400);
     }
-    // `serverName` is a placeholder until the handshake reports the server's own name, and `auth` is
-    // a guess that `beginConnect` corrects to `"none"` if the endpoint turns out to be public.
+    // `serverName` is a placeholder until the handshake reports the server's own name. Without a
+    // token, `auth` is a guess that `beginConnect` corrects to `"none"` if the endpoint turns out
+    // to be public.
     target = {
       endpoint: validated.url,
       serverId: serverIdFromEndpoint(validated.url),
       serverName: hostOf(validated.url),
       provenance: "user",
-      auth: "oauth",
+      auth: token ? "token" : "oauth",
     };
   }
 
   let outcome: ConnectOutcome;
   try {
-    outcome = await account.beginConnect(initiationNonce, target);
+    outcome = target
+      ? await account.beginFirstConnect(initiationNonce, target, token)
+      : await account.beginConnect(initiationNonce, null);
   } catch (err) {
     logger.warn("connect failed", { event: "connect.failed", error: err });
     return htmlResponse(connectFormHtml(
@@ -234,7 +240,36 @@ export class McpAccount extends McpAccountBase<Env> {
   async isAwaitingSelection(initiationNonce: string): Promise<boolean> {
     return this.awaitingSelection(initiationNonce);
   }
+
+  /**
+   * A first connect, with the API token the user pasted if any. Some servers only let known
+   * clients register for OAuth -- Fastmail refuses any redirect outside its allowlist -- but issue
+   * API tokens, which this connects with instead of signing in.
+   *
+   * The token is kept, or cleared, before `beginConnect` so its probe can present it. It reaches
+   * only the endpoint the account settles on: a user-supplied endpoint is fixed at first connect
+   * (see `resolveConnectTarget`), and every retry of the form replaces the token along with the
+   * endpoint.
+   */
+  async beginFirstConnect(
+    initiationNonce: string, target: ConnectedServer, token: string | null,
+  ): Promise<ConnectOutcome> {
+    if (this.hasConnectedServer() || !this.awaitingSelection(initiationNonce)) {
+      return { kind: "invalid" };
+    }
+    if (token) this.ctx.storage.kv.put(USER_TOKEN_KEY, token);
+    else this.ctx.storage.kv.delete(USER_TOKEN_KEY);
+    return this.beginConnect(initiationNonce, target);
+  }
+
+  // The user's API token. Unlike the portal's deployment-configured token, it was given for this
+  // account's own endpoint, which cannot change, so there is no repoint to guard against.
+  protected staticToken(_server: ConnectedServer): string | null {
+    return this.ctx.storage.kv.get<string>(USER_TOKEN_KEY) ?? null;
+  }
 }
+
+const USER_TOKEN_KEY = "userToken";
 
 // ---------------------------------------------------------------------------
 // Account-facing interface

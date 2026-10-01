@@ -441,9 +441,9 @@ export abstract class McpAccountBase<E extends AccountEnv, P = unknown>
         // fall back to. Keep the form retryable so an administrator can rotate the configured token
         // without forcing the user to start a new connect flow.
         this.restoreSelection(initiationNonce);
-        throw new Error(
-          `The MCP server "${server.serverName}" rejected this deployment's configured token.`,
-          { cause: err });
+        // The MCP gatekeeper also connects with an API token the user pasted (`staticToken`).
+        const whose = server.provenance === "user" ? "the API token you gave it" : "this deployment's configured token";
+        throw new Error(`The MCP server "${server.serverName}" rejected ${whose}.`, { cause: err });
       }
       // The endpoint answered with an authorization challenge, so OAuth is now the observed auth
       // mode even if deployment configuration optimistically called the portal public. Persist that

@@ -7,13 +7,15 @@ import { escapeHtml, PAGE_STYLE } from "@gadgets/mcp-shared/html";
 // Form controls, on top of the palette and page frame every connect page shares.
 const FORM_STYLE = `
   label { display: block; font-size: 14px; font-weight: 600; color: var(--strong); margin: 0 0 6px; }
+  label.spaced { margin-top: 16px; }
+  label .optional { font-weight: 400; color: var(--subtle); }
   p.hint { margin: 6px 0 0; font-size: 13px; color: var(--subtle); }
 
-  input[type=url] { width: 100%; box-sizing: border-box; padding: 9px 11px; font: inherit;
+  input[type=url], input[type=password] { width: 100%; box-sizing: border-box; padding: 9px 11px; font: inherit;
                     background: var(--control); color: var(--text);
                     border: 1px solid var(--line); border-radius: 8px; }
-  input[type=url]::placeholder { color: var(--subtle); }
-  input[type=url]:focus { outline: 0; border-color: var(--brand);
+  input[type=url]::placeholder, input[type=password]::placeholder { color: var(--subtle); }
+  input[type=url]:focus, input[type=password]:focus { outline: 0; border-color: var(--brand);
                           box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 22%, transparent); }
 
   button { width: 100%; margin-top: 20px; padding: 10px; border: 0; border-radius: 8px;
@@ -39,6 +41,10 @@ export function connectFormHtml(path: string, error?: string): string {
     <p class="hint">Only connect a server you trust. Its own annotations decide which of its tools
     run without asking you and which wait for your approval, and an annotation is only as
     trustworthy as the server that sent it.</p>
+    <label class="spaced" for="token">API token <span class="optional">(optional)</span></label>
+    <input id="token" type="password" name="token" autocomplete="off" placeholder="Leave empty to sign in">
+    <p class="hint">For a server that issues API tokens and won't let this app sign in, such as
+    Fastmail. Sent as a bearer token on every request.</p>
     <button type="submit">Continue</button>
   </form>
 </main></body></html>`;

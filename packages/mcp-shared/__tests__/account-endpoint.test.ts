@@ -98,6 +98,17 @@ class UnconfiguredTokenAccount extends McpAccountBase<AccountEnv> {
   }
 }
 
+// A server that refuses the API token a user pasted.
+class RejectedUserTokenAccount extends McpAccountBase<AccountEnv> {
+  protected baseUrl(): string { return "https://gatekeeper.example"; }
+  protected log(): never { return testLog as never; }
+  protected mintAccount(): never { throw new Error("not reached"); }
+  protected override staticToken(): string { return "user-token"; }
+  protected override async probe(): Promise<never> {
+    throw new McpAuthRequiredError("authorization required", null);
+  }
+}
+
 class AuthChallengeAccount extends McpAccountBase<AccountEnv> {
   protected baseUrl(): string { return "https://gatekeeper.example"; }
   protected log(): never { return testLog as never; }
@@ -435,6 +446,20 @@ describe("connect initiation nonce", () => {
     expect(context.storage.kv.get("server")).toBeUndefined();
     expect(context.storage.kv.get("connected")).toBeUndefined();
     expect(account.isWaiting(nonce)).toBe(true);
+  });
+
+  it("tells the user when the server refuses the API token they gave it", async () => {
+    // The MCP gatekeeper's token connect: the endpoint and the token both came from the form, so
+    // blaming "this deployment's configured token" would send the user looking for a setting.
+    const context = fakeContext();
+    const account = new RejectedUserTokenAccount(context as never, {});
+    const nonce = "e".repeat(64);
+    await account.prepareReconnect(nonce);
+
+    await expect(account.beginConnect(nonce, {
+      ...server("https://mail.example/mcp"), auth: "token", provenance: "user",
+    })).rejects.toThrow('The MCP server "Acme" rejected the API token you gave it.');
+    expect(context.storage.kv.get("server")).toBeUndefined();
   });
 
   it("adopts OAuth but refuses a private authorization redirect", async () => {
